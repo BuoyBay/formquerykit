@@ -1,0 +1,171 @@
+''' One immutable ordered name/value pair. HadEquals records bare-name syntax.
+Public Class FormPair
+    Private Property mName As String
+    Private Property mValue As String
+    Private Property mHadEquals As Boolean
+    Public Sub Constructor(name As String, value As String, hadEquals As Boolean = True)
+        mName = name
+        mValue = value
+        mHadEquals = hadEquals
+    End Sub
+    Public Property Name As String
+        Get
+            Return mName
+        End Get
+    End Property
+    Public Property Value As String
+        Get
+            Return mValue
+        End Get
+    End Property
+    Public Property HadEquals As Boolean
+        Get
+            Return mHadEquals
+        End Get
+    End Property
+End Class
+
+Private Sub FormBounds(maxBytes As Integer, maxPairs As Integer)
+    If maxBytes < 1 Or maxBytes > 1048576 Or maxPairs < 1 Or maxPairs > 10000 Then Throw New InvalidArgumentException("Invalid form/query limits")
+End Sub
+
+Private Function FormHex(octet As Integer) As Integer
+    If octet >= 48 And octet <= 57 Then Return octet - 48
+    If octet >= 65 And octet <= 70 Then Return octet - 55
+    If octet >= 97 And octet <= 102 Then Return octet - 87
+    Return -1
+End Function
+
+Private Function FormDecode(data As Bytes, start As Integer, finish As Integer, plusAsSpace As Boolean) As String
+    Dim output As New Bytes(finish - start)
+    Dim index As Integer = start
+    While index < finish
+        Dim octet As Integer = data.Item(index)
+        If octet = 37 Then
+            If finish - index < 3 Then Throw New InvalidArgumentException("Incomplete form/query percent escape")
+            Dim high As Integer = FormHex(data.Item(index + 1))
+            Dim low As Integer = FormHex(data.Item(index + 2))
+            If high < 0 Or low < 0 Then Throw New InvalidArgumentException("Invalid form/query percent escape")
+            octet = high * 16 + low
+            index += 3
+        Else
+            If plusAsSpace And octet = 43 Then octet = 32
+            index += 1
+        End If
+        If octet = 0 Then Throw New InvalidArgumentException("NUL cannot be represented by the form/query String contract")
+        output.Append(octet)
+    End While
+    Return output.ToString(Text.Encodings.UTF8)
+End Function
+
+Private Function ParseFormPairs(sourceText As String, plusAsSpace As Boolean, maxBytes As Integer, maxPairs As Integer) As Array Of FormPair
+    FormBounds(maxBytes, maxPairs)
+    If String.LenBytes(sourceText) > maxBytes Then Throw New InvalidArgumentException("Form/query input byte limit exceeded")
+    Dim data As Bytes = Bytes.FromString(sourceText, Text.Encodings.UTF8)
+    Dim pairs() As FormPair
+    Dim start As Integer = 0
+    While start < data.Count
+        Dim finish As Integer = start
+        While finish < data.Count
+            If data.Item(finish) = 38 Then Exit While
+            finish += 1
+        End While
+        If finish > start Then
+            If Array.Count(pairs) >= maxPairs Then Throw New InvalidArgumentException("Form/query pair limit exceeded")
+            Dim equalsAt As Integer = start
+            While equalsAt < finish
+                If data.Item(equalsAt) = 61 Then Exit While
+                equalsAt += 1
+            End While
+            Dim name As String = FormDecode(data, start, equalsAt, plusAsSpace)
+            Dim value As String = ""
+            If equalsAt < finish Then value = FormDecode(data, equalsAt + 1, finish, plusAsSpace)
+            Array.Append(pairs, New FormPair(name, value, equalsAt < finish))
+        End If
+        start = finish + 1
+    End While
+    Return pairs
+End Function
+
+''' Strict UTF8 form parser. Plus means space; malformed escapes/UTF8 reject.
+Public Function ParseForm(sourceText As String, maxBytes As Integer = 65536, maxPairs As Integer = 1000) As Array Of FormPair
+    Return ParseFormPairs(sourceText, True, maxBytes, maxPairs)
+End Function
+
+''' Ampersand-separated query convention. Plus remains a literal plus.
+Public Function ParseQueryPairs(sourceText As String, maxBytes As Integer = 65536, maxPairs As Integer = 1000) As Array Of FormPair
+    Return ParseFormPairs(sourceText, False, maxBytes, maxPairs)
+End Function
+
+Private Function FormEncode(sourceText As String, formMode As Boolean, maxBytes As Integer) As String
+    If String.LenBytes(sourceText) > maxBytes Then Throw New InvalidArgumentException("Form/query field byte limit exceeded")
+    Dim data As Bytes = Bytes.FromString(sourceText, Text.Encodings.UTF8)
+    Dim output() As String
+    Dim hex As String = "0123456789ABCDEF"
+    Dim size As Integer = 0
+    For index As Integer = 0 To data.Count - 1
+        Dim octet As Integer = data.Item(index)
+        If octet = 0 Then Throw New InvalidArgumentException("NUL cannot be represented by the form/query String contract")
+        Dim piece As String
+        Dim safe As Boolean = (octet >= 48 And octet <= 57) Or (octet >= 65 And octet <= 90) Or (octet >= 97 And octet <= 122) Or octet = 45 Or octet = 46 Or octet = 95
+        If formMode Then
+            safe = safe Or octet = 42
+        Else
+            safe = safe Or octet = 126
+        End If
+        If safe Then
+            piece = String.Chr(octet)
+        ElseIf formMode And octet = 32 Then
+            piece = "+"
+        Else
+            piece = "%" + String.Substring(hex, octet \ 16, 1) + String.Substring(hex, octet Mod 16, 1)
+        End If
+        If String.LenBytes(piece) > maxBytes - size Then Throw New InvalidArgumentException("Form/query output byte limit exceeded")
+        size += String.LenBytes(piece)
+        Array.Append(output, piece)
+    Next
+    Return String.Join(output, "")
+End Function
+
+Private Function WriteFormPairs(pairs As Array Of FormPair, formMode As Boolean, maxBytes As Integer, maxPairs As Integer) As String
+    FormBounds(maxBytes, maxPairs)
+    If Array.Count(pairs) > maxPairs Then Throw New InvalidArgumentException("Form/query pair limit exceeded")
+    Dim output() As String
+    Dim size As Integer = 0
+    For Each pair As FormPair In pairs
+        If pair Is Nil Then Throw New InvalidArgumentException("Form/query pair must not be Nil")
+        Dim name As String = FormEncode(pair.Name, formMode, maxBytes)
+        Dim value As String = FormEncode(pair.Value, formMode, maxBytes)
+        Dim needed As Integer = String.LenBytes(name) + String.LenBytes(value) + 1
+        If Array.Count(output) > 0 Then needed += 1
+        If needed > maxBytes - size Then Throw New InvalidArgumentException("Form/query output byte limit exceeded")
+        size += needed
+        Array.Append(output, name + "=" + value)
+    Next
+    Return String.Join(output, "&")
+End Function
+
+''' Canonical form serialization always writes name=value, including empty values.
+Public Function WriteForm(pairs As Array Of FormPair, maxBytes As Integer = 65536, maxPairs As Integer = 1000) As String
+    Return WriteFormPairs(pairs, True, maxBytes, maxPairs)
+End Function
+
+''' Encode paired query components with %20 for spaces and %2B for literal plus.
+Public Function WriteQueryPairs(pairs As Array Of FormPair, maxBytes As Integer = 65536, maxPairs As Integer = 1000) As String
+    Return WriteFormPairs(pairs, False, maxBytes, maxPairs)
+End Function
+
+''' Exact case-sensitive lookup, preserving duplicate-value order.
+Public Function FormValues(pairs As Array Of FormPair, name As String) As Array Of String
+    If Array.Count(pairs) > 10000 Then Throw New InvalidArgumentException("Form/query lookup pair limit exceeded")
+    Dim output() As String
+    For Each pair As FormPair In pairs
+        If pair Is Nil Then Throw New InvalidArgumentException("Form/query pair must not be Nil")
+        If String.Compare(pair.Name, name, True) = 0 Then Array.Append(output, pair.Value)
+    Next
+    Return output
+End Function
+
+Public Function FormHasName(pairs As Array Of FormPair, name As String) As Boolean
+    Return Array.Count(FormValues(pairs, name)) > 0
+End Function

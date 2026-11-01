@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "dependencies": {
+    "formquerykit": {
+      "git": "https://github.com/BuoyBay/formquerykit.git",
+      "rev": "refs/heads/main"
+    }
+  }
+}

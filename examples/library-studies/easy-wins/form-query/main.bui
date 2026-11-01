@@ -1,0 +1,11 @@
+Import formquerykit
+
+Sub Main()
+    Dim pairs As Array Of FormPair = ParseForm("tag=Buoy&tag=tools&name=Zo%C3%AB+Example&flag&empty=")
+    For Each pair As FormPair In pairs
+        Print pair.Name + " => " + pair.Value
+    Next
+    Print WriteForm(pairs)
+    Print WriteQueryPairs(pairs)
+    Print "tag values: " + String.From(Array.Count(FormValues(pairs, "tag")))
+End Sub
