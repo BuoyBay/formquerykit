@@ -69,24 +69,8 @@ than its byte count because fragment arrays have overhead. Lookup accepts at
 most 10000 pairs. Nil pairs reject. No partial result is returned after an error.
 These are whole-component operations, not streaming codecs.
 
-## Build and verification
+## Package use
 
-```sh
-/usr/bin/buoy pkg seal . -o packages/formquerykit-0.1.0.buipkg
-```
-
-The runner seals a fresh package, checks module/test/example across six desktop
-targets, executes both consumers and checks generated valid inputs against
-Python `urllib.parse`. The form oracle applies WHATWG's `*`/`~` encode-set
-adjustment explicitly. Malformed-input strictness is tested separately.
-`BUOY` selects the compiler and `BPM_PACKAGER` the sealing command. Native
-execution is on Linux; other platforms are compiler checks. No remote package
-publication was performed.
-
-See the example and
-provenance.
-
-
-[Typed API](typed-api.md) · [Getting started](getting-started.md)
-
-Test suites and fixtures are maintainer-local and are not part of this public repository.
+The codec is source-only. Import it after installing the package in the
+consumer's `packages/` directory. The [provenance notes](../buoybay-licenses/PROVENANCE.md) explain
+the upstream reference and independent implementation.

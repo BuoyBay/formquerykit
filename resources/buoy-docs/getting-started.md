@@ -18,7 +18,7 @@ Pass decoded names and values to the writers; do not percent-encode them first.
 This complete program shows how the same value is encoded for a form body and
 for a query component:
 
-```buoy
+```basic
 Import formquerykit
 
 Sub Main()

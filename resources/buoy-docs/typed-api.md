@@ -41,8 +41,6 @@ One immutable ordered name/value pair. HadEquals records bare-name syntax.
 
 Returns: no value.
 
-## FormQueryKit functions
-
 ### ParseForm
 
 `Public Function ParseForm(sourceText As String, maxBytes As Integer = 65536, maxPairs As Integer = 1000) As Array Of FormPair`

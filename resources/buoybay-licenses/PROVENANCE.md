@@ -12,8 +12,4 @@ sequences and the UTF-8 serialization set follow that specification. Strict
 malformed escape/UTF-8/NUL rejection is a documented deviation; the literal-plus
 paired-query mode is a deliberate convention rather than a generic URI rule.
 
-The separate Python standard-library oracle tests valid-input interoperability;
-it is not used as the implementation or as an oracle for deliberately stricter
-malformed-input behavior. Form codec functions use Bytes rather than URIKit's
-printable-ASCII byte decoder so literal Unicode form text can be accepted without
-a package dependency.
+The form codec uses Bytes rather than URIKit's printable-ASCII byte decoder so literal Unicode form text can be accepted without a package dependency.
