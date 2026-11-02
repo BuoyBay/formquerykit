@@ -1,1 +1,1 @@
-{"schema":1,"name":"formquerykit","version":"0.1.0","description":"Bounded strict UTF8 form and paired-query codecs preserving duplicate order"}
+{"schema":1,"name":"formquerykit","version":"0.1.0","description":"Encode and decode forms and ordered query pairs"}
