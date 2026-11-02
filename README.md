@@ -1,4 +1,4 @@
-# HTML forms and ordered query pairs
+# HTML forms and query pairs
 
 `Import formquerykit` provides ordered UTF-8 name/value codecs for HTML form
 bodies and paired URI query components. It has no native or package dependencies,
